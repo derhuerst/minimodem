@@ -1,0 +1,59 @@
+name: test and release binaries
+
+on:
+  push:
+    tags:
+      - "*"
+
+jobs:
+  test:
+    strategy:
+      matrix:
+        os:
+          - ubuntu
+          - macos
+    runs-on: ${{ matrix.os }}-latest
+    steps:
+
+    - name: checkout
+      uses: actions/checkout@v2
+
+    - name: install dependencies
+      if: ${{ matrix.os == 'ubuntu' }}
+      run: ./install-dependencies-linux.sh
+    - name: install dependencies
+      if: ${{ matrix.os == 'macos' }}
+      run: ./install-dependencies-macos.sh
+
+    - name: autoreconf
+      run: autoreconf -i
+    - name: ./configure
+      if: ${{ matrix.os == 'ubuntu' }}
+      run: ./configure
+    - name: ./configure
+      if: ${{ matrix.os == 'macos' }}
+      run: ./configure --without-alsa --without-pulseaudio --without-sndio
+    - name: make
+      run: make
+
+    - name: make check
+      run: make check
+
+    - name: ls src/minimodem
+      run: ls -lh src/minimodem
+    - name: upload binary
+      uses: actions/upload-artifact@v2
+      with:
+        name: ${{ matrix.os }}-binary
+        path: src/minimodem
+
+  release:
+    needs: [test]
+    runs-on: ubuntu-latest
+    steps:
+
+    - name: download binaries
+      uses: actions/download-artifact@v2
+    # todo
+    - name: tree
+      run: ls -al
